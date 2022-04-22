@@ -1000,13 +1000,15 @@ function Install-UnityHubPackage {
         [UnitySetupInstaller]$InstallerInstance
     )
 
-    echo "installing"
-    Write-Host $Package.Path
-    echo "to"
-    Write-Host $Destination
-    echo "using"
-    Write-Host $InstallerInstance.Destination
-    Write-Host $InstallerInstance.DownloadUrl
+    $finalDestination = $InstallerInstance.Destination.Replace("{UNITY_PATH}", $Destination)
+    $renameFrom = $InstallerInstance.RenameFrom.Replace("{UNITY_PATH}", $Destination)
+    $renameTo = $InstallerInstance.RenameTo.Replace("{UNITY_PATH}", $Destination)
+
+    Expand-Archive $Package.Path -DestinationPath $finalDestination
+    if ($renameTo -and $renameFrom)
+    {
+        Move-Item -Path $renameFrom -Destination $renameTo
+    }
 }
 
 
@@ -1034,7 +1036,7 @@ function Install-UnitySetupPackage {
             New-Item -Path $Destination -ItemType "directory"
             $startProcessArgs = @{
                 'FilePath'     = 'tar';
-                'ArgumentList' = @("xfv", $Package.Path, "--directory=$Destination");
+                'ArgumentList' = @("xf", $Package.Path, "--directory=$Destination");
                 'PassThru'     = $true;
                 'Wait'         = $true;
             }
