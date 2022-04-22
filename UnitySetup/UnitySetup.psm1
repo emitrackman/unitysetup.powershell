@@ -637,6 +637,12 @@ function Find-UnitySetupInstaller {
 
             $testResult = Invoke-WebRequest $_.downloadUrl -Method HEAD -UseBasicParsing
             # For packages on macOS the Content-Length and Last-Modified are returned as an array.
+            if ($testResult.Headers['Content-Length'] -is [System.Array]) {
+                $installerLength = [int64]$testResult.Headers['Content-Length'][0]
+            }
+            else {
+                $installerLength = [int64]$testResult.Headers['Content-Length']
+            }
             if ($testResult.Headers['Last-Modified'] -is [System.Array]) {
                 $lastModified = [System.DateTime]$testResult.Headers['Last-Modified'][0]
             }
@@ -648,7 +654,7 @@ function Find-UnitySetupInstaller {
                 'ComponentType' = [UnitySetupComponent]::Android_SDK; # TODO: Evaluate it
                 'Version'       = $Version;
                 'DownloadUrl'   = $_.downloadUrl;
-                'Length'        = $_.downloadSize;
+                'Length'        = $installerLength; # Not $_.downloadSize; because UnityHub provides only rought estimates here 
                 'LastModified'  = $lastModified;
                 'Destination'   = $_.destination;
                 'RenameFrom'    = $_.renameFrom;
