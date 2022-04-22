@@ -1,5 +1,6 @@
 ﻿# Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
+# TODO:
 # - issue with regex parsing validation + strange vers+on links pitfall
 # - Main installer is confused with components, had to make exception to insert correct modules.json
 Import-Module powershell-yaml -MinimumVersion '0.3' -ErrorAction Stop
@@ -586,18 +587,74 @@ function Find-UnitySetupInstaller {
         else { $result }
     }
 
-    # Using modern UnityHub endpoint to obtain additional components by their ids
 
     if ($Components -band [UnitySetupComponent]::Android_SDK) {
         $AdditionalComponentIds += 'android-sdk-ndk-tools'
+        $AdditionalComponentIds += 'android-sdk-platform-tools'
+        $AdditionalComponentIds += 'android-sdk-build-tools'
+        $AdditionalComponentIds += 'android-sdk-platforms-29'
+        $AdditionalComponentIds += 'android-sdk-platforms-30'
+        $AdditionalComponentIds += 'android-ndk'
     }
     if ($Components -band [UnitySetupComponent]::Android_OpenJDK) {
         $AdditionalComponentIds += 'android-open-jdk'
     }
 
-    $unityHubEndpoint = "https://public-cdn.cloud.unity3d.com/hub/prod/releases-linux.json"
-    $testResult = Invoke-WebRequest $unityHubEndpoint -UseBasicParsing
+    if ($AdditionalComponentIds.Length -eq 0)
+    {
+        return $installers | Sort-Object -Property ComponentType
+    }
 
+    # Using modern UnityHub endpoint to obtain additional components by their ids
+
+    $unityHubEndpoint = switch ($currentOS) {
+        ([OperatingSystem]::Windows) {
+            "https://public-cdn.cloud.unity3d.com/hub/prod/releases-win32.json"
+        }
+        ([OperatingSystem]::Linux) {
+            "https://public-cdn.cloud.unity3d.com/hub/prod/releases-linux.json"
+        }
+        ([OperatingSystem]::Mac) {
+            "https://public-cdn.cloud.unity3d.com/hub/prod/releases-darwin.json"
+        }
+    }
+    if ($Version.Major -le 2018) {
+        $unityHubEndpoint = "https://public-cdn.cloud.unity3d.com/hub/prod/releases.json"
+    }
+
+    try {
+        $unityInstallersIndex = Invoke-WebRequest $unityHubEndpoint | ConvertFrom-Json
+        $unityInstallerModules = $unityInstallersIndex.official + $unityInstallersIndex.betas | Where-Object { 
+            $candidateVersion = [UnityVersion]($_.version)
+            return $candidateVersion.Major -eq $Version.Major -and $candidateVersion.Minor -eq $Version.Minor
+        } | Select-Object -First 1 -ExpandProperty modules
+
+        $unityInstallerModules | Where-Object { $AdditionalComponentIds.Contains( $_.id ) } | ForEach-Object {
+
+            $testResult = Invoke-WebRequest $_.downloadUrl -Method HEAD -UseBasicParsing
+            # For packages on macOS the Content-Length and Last-Modified are returned as an array.
+            if ($testResult.Headers['Last-Modified'] -is [System.Array]) {
+                $lastModified = [System.DateTime]$testResult.Headers['Last-Modified'][0]
+            }
+            else {
+                $lastModified = [System.DateTime]$testResult.Headers['Last-Modified']
+            }
+
+            New-Object UnitySetupInstaller -Property @{
+                'ComponentType' = [UnitySetupComponent]::Android_SDK; # TODO: Evaluate it
+                'Version'       = $Version;
+                'DownloadUrl'   = $_.downloadUrl;
+                'Length'        = $_.downloadSize;
+                'LastModified'  = $lastModified;
+                # 'Destination'        = $_.destination;
+            }
+        }
+
+    }
+    catch
+    {
+        throw "Failed to parse UnityHub endpoint, probably url was changed or Unity changed the format"
+    }
 
 
     $installers | Sort-Object -Property ComponentType
