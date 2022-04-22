@@ -48,6 +48,10 @@ class UnitySetupInstaller {
     [int64]$Length
     [DateTime]$LastModified
     [string]$DownloadUrl
+    [string]$Destination
+    [string]$RenameFrom
+    [string]$RenameTo
+    [bool]$HubInstaller
 }
 
 class UnitySetupInstance {
@@ -646,7 +650,10 @@ function Find-UnitySetupInstaller {
                 'DownloadUrl'   = $_.downloadUrl;
                 'Length'        = $_.downloadSize;
                 'LastModified'  = $lastModified;
-                # 'Destination'        = $_.destination;
+                'Destination'   = $_.destination;
+                'RenameFrom'    = $_.renameFrom;
+                'RenameTo'      = $_.renameTo;
+                'HubInstaller'  = $true;
             }
         }
 
