@@ -987,6 +987,29 @@ function Request-UnitySetupInstaller {
     }
 }
 
+function Install-UnityHubPackage {
+    [CmdletBinding()]
+    param(
+        [parameter(Mandatory = $true)]
+        [UnitySetupResource] $Package,
+
+        [parameter(Mandatory = $true)]
+        [string]$Destination,
+
+        [parameter(Mandatory = $true)]
+        [UnitySetupInstaller]$InstallerInstance
+    )
+
+    echo "installing"
+    Write-Host $Package.Path
+    echo "to"
+    Write-Host $Destination
+    echo "using"
+    Write-Host $InstallerInstance.Destination
+    Write-Host $InstallerInstance.DownloadUrl
+}
+
+
 function Install-UnitySetupPackage {
     [CmdletBinding()]
     param(
@@ -1008,7 +1031,13 @@ function Install-UnitySetupPackage {
             }
         }
         ([OperatingSystem]::Linux) {
-            throw "Install-UnitySetupPackage has not been implemented on the Linux platform. Contributions welcomed!";
+            New-Item -Path $Destination -ItemType "directory"
+            $startProcessArgs = @{
+                'FilePath'     = 'tar';
+                'ArgumentList' = @("xfv", $Package.Path, "--directory=$Destination");
+                'PassThru'     = $true;
+                'Wait'         = $true;
+            }
         }
         ([OperatingSystem]::Mac) {
             # Note that $Destination has to be a disk path.
@@ -1073,9 +1102,6 @@ function Install-UnitySetupInstance {
     )
     begin {
         $currentOS = Get-OperatingSystem
-        if ($currentOS -eq [OperatingSystem]::Linux) {
-            throw "Install-UnitySetupInstance has not been implemented on the Linux platform. Contributions welcomed!";
-        }
 
         if ( -not $PSBoundParameters.ContainsKey('BasePath') ) {
             $defaultInstallPath = switch ($currentOS) {
@@ -1083,7 +1109,7 @@ function Install-UnitySetupInstance {
                     "C:\Program Files\Unity\Hub\Editor\"
                 }
                 ([OperatingSystem]::Linux) {
-                    throw "Install-UnitySetupInstance has not been implemented on the Linux platform. Contributions welcomed!";
+                    "$HOME/Unity/Hub/Editor";
                 }
                 ([OperatingSystem]::Mac) {
                     "/Applications/Unity/Hub/Editor/"
@@ -1188,14 +1214,24 @@ function Install-UnitySetupInstance {
                 Install-UnitySetupPackage -Package $editorInstaller -Destination $packageDestination
             }
 
+            $i = 0
             $installerPaths | ForEach-Object {
                 # Already installed this earlier. Skipping.
                 if ($_.ComponentType -band $editorComponent) {
+                    $i++
                     return
                 }
 
                 Write-Verbose "Installing $($_.ComponentType)"
-                Install-UnitySetupPackage -Package $_ -Destination $packageDestination
+
+                $installerInstance = $installerInstances[$i]
+                if ($installerInstance.HubInstaller) {
+                    Install-UnityHubPackage -Package $_ -InstallerInstance $installerInstance  -Destination $packageDestination
+                } else {
+                    Install-UnitySetupPackage -Package $_ -Destination $packageDestination
+                }
+
+                $i++
             }
 
             # Move the install from the sparse bundle disk to the install directory.
