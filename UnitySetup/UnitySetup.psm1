@@ -1,5 +1,7 @@
 ﻿# Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
+# - issue with regex parsing validation + strange vers+on links pitfall
+# - Main installer is confused with components, had to make exception to insert correct modules.json
 Import-Module powershell-yaml -MinimumVersion '0.3' -ErrorAction Stop
 
 [Flags()]
@@ -22,7 +24,9 @@ enum UnitySetupComponent {
     Mac_IL2CPP = (1 -shl 14)
     Lumin = (1 -shl 15)
     Linux_IL2CPP = (1 -shl 16)
-    All = (1 -shl 17) - 1
+    Android_SDK = (1 -shl 17)
+    Android_OpenJDK = (1 -shl 18)
+    All = (1 -shl 19) - 1
 }
 
 [Flags()]
@@ -97,6 +101,9 @@ class UnitySetupInstance {
         # Common playback engines:
         $componentTests[[UnitySetupComponent]::Lumin]    = , [io.path]::Combine("$playbackEnginePath", "LuminSupport");
         $componentTests[[UnitySetupComponent]::Android]  = , [io.path]::Combine("$playbackEnginePath", "AndroidPlayer");
+        $componentTests[[UnitySetupComponent]::Android_SDK] =[io.path]::Combine("$playbackEnginePath", "AndroidPlayer/SDK"),
+                                                             [io.path]::Combine("$playbackEnginePath", "AndroidPlayer/NDK");
+        $componentTests[[UnitySetupComponent]::Android_OpenJDK] = [io.path]::Combine("$playbackEnginePath", "AndroidPlayer/OpenJDK"),
         $componentTests[[UnitySetupComponent]::iOS]      = , [io.path]::Combine("$playbackEnginePath", "iOSSupport");
         $componentTests[[UnitySetupComponent]::AppleTV]  = , [io.path]::Combine("$playbackEnginePath", "AppleTVSupport");
         $componentTests[[UnitySetupComponent]::Facebook] = , [io.path]::Combine("$playbackEnginePath", "Facebook");
@@ -352,10 +359,14 @@ function ConvertTo-UnitySetupComponent {
    Manually specify the build hash, to select a private build.
 .PARAMETER Components
    What components would you like to search for? Defaults to All
+.PARAMETER AdditionalComponentIds
+   What components not listed in Unity's website should also be installed.
 .EXAMPLE
    Find-UnitySetupInstaller -Version 2017.3.0f3
 .EXAMPLE
    Find-UnitySetupInstaller -Version 2017.3.0f3 -Components Windows,Documentation
+.EXAMPLE
+   Find-UnitySetupInstaller -Version 2017.3.0f3 -Components Android -AdditionalComponentIds android-sdk-ndk-tools,android-open-jdk
 #>
 function Find-UnitySetupInstaller {
     [CmdletBinding()]
@@ -367,7 +378,10 @@ function Find-UnitySetupInstaller {
         [UnitySetupComponent] $Components = [UnitySetupComponent]::All,
 
         [parameter(Mandatory = $false)]
-        [string] $Hash = ""
+        [string] $Hash = "",
+
+        [parameter(Mandatory = $false)]
+        [string[]] $AdditionalComponentIds
     )
 
     $Components = ConvertTo-UnitySetupComponent -Component $Components -Version $Version
@@ -379,7 +393,8 @@ function Find-UnitySetupInstaller {
             $installerExtension = "exe"
         }
         ([OperatingSystem]::Linux) {
-            throw "Find-UnitySetupInstaller has not been implemented on the Linux platform. Contributions welcomed!";
+            $targetSupport = "LinuxEditorTargetInstaller"
+            $installerExtension = "tar.xz"
         }
         ([OperatingSystem]::Mac) {
             $targetSupport = "MacEditorTargetInstaller"
@@ -432,9 +447,7 @@ function Find-UnitySetupInstaller {
         }
         ([OperatingSystem]::Linux) {
             $setupComponent = [UnitySetupComponent]::Linux
-            # TODO: $installerTemplates[$setupComponent] = , "???/UnitySetup64-$Version.exe";
-
-            throw "Find-UnitySetupInstaller has not been implemented on the Linux platform. Contributions welcomed!";
+            $installerTemplates[$setupComponent] = , "LinuxEditorInstaller/Unity-$Version.tar.xz";
         }
         ([OperatingSystem]::Mac) {
             $setupComponent = [UnitySetupComponent]::Mac
@@ -528,7 +541,7 @@ function Find-UnitySetupInstaller {
         $linkComponents[1] = $Hash
     }
 
-    $installerTemplates.Keys | Where-Object { $Components -band $_ } | ForEach-Object {
+    $installers = $installerTemplates.Keys | Where-Object { $Components -band $_ } | ForEach-Object {
         $templates = $installerTemplates.Item($_);
         $result = $null
         foreach ($template in $templates ) {
@@ -571,7 +584,23 @@ function Find-UnitySetupInstaller {
             Write-Warning "Unable to find installer for the $_ component."
         }
         else { $result }
-    } | Sort-Object -Property ComponentType
+    }
+
+    # Using modern UnityHub endpoint to obtain additional components by their ids
+
+    if ($Components -band [UnitySetupComponent]::Android_SDK) {
+        $AdditionalComponentIds += 'android-sdk-ndk-tools'
+    }
+    if ($Components -band [UnitySetupComponent]::Android_OpenJDK) {
+        $AdditionalComponentIds += 'android-open-jdk'
+    }
+
+    $unityHubEndpoint = "https://public-cdn.cloud.unity3d.com/hub/prod/releases-linux.json"
+    $testResult = Invoke-WebRequest $unityHubEndpoint -UseBasicParsing
+
+
+
+    $installers | Sort-Object -Property ComponentType
 }
 
 <#
@@ -1196,7 +1225,9 @@ function Get-UnitySetupInstance {
             }
         }
         ([OperatingSystem]::Linux) {
-            throw "Get-UnitySetupInstance has not been implemented on the Linux platform. Contributions welcomed!";
+            if (-not $BasePath) {
+                $BasePath = @('/opt/unity-editor', '~/Unity/Hub/Editor')
+            }
         }
         ([OperatingSystem]::Mac) {
             if (-not $BasePath) {
