@@ -668,7 +668,7 @@ function Find-UnitySetupInstaller {
     }
 
 
-    $additionalInstallers + $installers | Sort-Object -Property ComponentType
+    @($additionalInstallers) + @($installers) | Sort-Object -Property ComponentType
 }
 
 <#
