@@ -396,8 +396,7 @@ function Find-UnitySetupInstaller {
             $installerExtension = "exe"
         }
         ([OperatingSystem]::Linux) {
-            $targetSupport = "LinuxEditorTargetInstaller"
-            $installerExtension = "tar.xz"
+            throw "Find-UnitySetupInstaller has not been implemented on the Linux platform. Contributions welcomed!";
         }
         ([OperatingSystem]::Mac) {
             $targetSupport = "MacEditorTargetInstaller"
@@ -450,7 +449,9 @@ function Find-UnitySetupInstaller {
         }
         ([OperatingSystem]::Linux) {
             $setupComponent = [UnitySetupComponent]::Linux
-            $installerTemplates[$setupComponent] = , "LinuxEditorInstaller/Unity-$Version.tar.xz";
+            # TODO: $installerTemplates[$setupComponent] = , "???/UnitySetup64-$Version.exe";
+
+            throw "Find-UnitySetupInstaller has not been implemented on the Linux platform. Contributions welcomed!";
         }
         ([OperatingSystem]::Mac) {
             $setupComponent = [UnitySetupComponent]::Mac
@@ -1032,15 +1033,7 @@ function Install-UnitySetupPackage {
             }
         }
         ([OperatingSystem]::Linux) {
-            if (!(Test-Path $Destination -PathType Container)) {
-                New-Item -Path $Destination -ItemType Directory | Out-Null
-            }
-            $startProcessArgs = @{
-                'FilePath'     = 'tar';
-                'ArgumentList' = @("xf", $Package.Path, "--directory=$Destination");
-                'PassThru'     = $true;
-                'Wait'         = $true;
-            }
+            throw "Install-UnitySetupPackage has not been implemented on the Linux platform. Contributions welcomed!";
         }
         ([OperatingSystem]::Mac) {
             # Note that $Destination has to be a disk path.
@@ -1105,6 +1098,9 @@ function Install-UnitySetupInstance {
     )
     begin {
         $currentOS = Get-OperatingSystem
+        if ($currentOS -eq [OperatingSystem]::Linux) {
+            throw "Install-UnitySetupInstance has not been implemented on the Linux platform. Contributions welcomed!";
+        }
 
         if ( -not $PSBoundParameters.ContainsKey('BasePath') ) {
             $defaultInstallPath = switch ($currentOS) {
@@ -1112,7 +1108,7 @@ function Install-UnitySetupInstance {
                     "C:\Program Files\Unity\Hub\Editor\"
                 }
                 ([OperatingSystem]::Linux) {
-                    "$HOME/Unity/Hub/Editor";
+                    throw "Install-UnitySetupInstance has not been implemented on the Linux platform. Contributions welcomed!";
                 }
                 ([OperatingSystem]::Mac) {
                     "/Applications/Unity/Hub/Editor/"
@@ -1334,9 +1330,7 @@ function Get-UnitySetupInstance {
             }
         }
         ([OperatingSystem]::Linux) {
-            if (-not $BasePath) {
-                $BasePath = @('/opt/unity-editor', '~/Unity/Hub/Editor')
-            }
+            throw "Get-UnitySetupInstance has not been implemented on the Linux platform. Contributions welcomed!";
         }
         ([OperatingSystem]::Mac) {
             if (-not $BasePath) {
