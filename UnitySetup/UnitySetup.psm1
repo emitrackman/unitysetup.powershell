@@ -1,8 +1,5 @@
 ﻿# Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
-# TODO:
-# - issue with regex parsing validation + strange vers+on links pitfall
-# - Main installer is confused with components, had to make exception to insert correct modules.json
 Import-Module powershell-yaml -MinimumVersion '0.3' -ErrorAction Stop
 
 [Flags()]
@@ -106,9 +103,9 @@ class UnitySetupInstance {
         # Common playback engines:
         $componentTests[[UnitySetupComponent]::Lumin]    = , [io.path]::Combine("$playbackEnginePath", "LuminSupport");
         $componentTests[[UnitySetupComponent]::Android]  = , [io.path]::Combine("$playbackEnginePath", "AndroidPlayer");
-        $componentTests[[UnitySetupComponent]::Android_SDK_NDK] =[io.path]::Combine("$playbackEnginePath", "AndroidPlayer/SDK"),
-                                                             [io.path]::Combine("$playbackEnginePath", "AndroidPlayer/NDK");
-        $componentTests[[UnitySetupComponent]::Android_OpenJDK] = [io.path]::Combine("$playbackEnginePath", "AndroidPlayer/OpenJDK"),
+        $componentTests[[UnitySetupComponent]::Android_SDK_NDK] =   [io.path]::Combine("$playbackEnginePath", "AndroidPlayer/SDK"),
+                                                                    [io.path]::Combine("$playbackEnginePath", "AndroidPlayer/NDK");
+        $componentTests[[UnitySetupComponent]::Android_OpenJDK] = , [io.path]::Combine("$playbackEnginePath", "AndroidPlayer/OpenJDK");
         $componentTests[[UnitySetupComponent]::iOS]      = , [io.path]::Combine("$playbackEnginePath", "iOSSupport");
         $componentTests[[UnitySetupComponent]::AppleTV]  = , [io.path]::Combine("$playbackEnginePath", "AppleTVSupport");
         $componentTests[[UnitySetupComponent]::Facebook] = , [io.path]::Combine("$playbackEnginePath", "Facebook");
@@ -617,11 +614,12 @@ function Find-UnitySetupInstaller {
             "https://public-cdn.cloud.unity3d.com/hub/prod/releases-darwin.json"
         }
     }
+
     if ($Version.Major -le 2018) {
-        $unityHubEndpoint = "https://public-cdn.cloud.unity3d.com/hub/prod/releases.json"
+        throw "UnityHub components installation is not yet supported for versions 2018 and below"
     }
 
-    try {
+    $additionalInstallers = try {
         $unityInstallersIndex = Invoke-WebRequest $unityHubEndpoint | ConvertFrom-Json
         $unityInstallerComponents = $unityInstallersIndex.official + $unityInstallersIndex.betas | Where-Object { 
             $candidateVersion = [UnityVersion]($_.version)
@@ -670,7 +668,7 @@ function Find-UnitySetupInstaller {
     }
 
 
-    $installers | Sort-Object -Property ComponentType
+    $additionalInstallers + $installers | Sort-Object -Property ComponentType
 }
 
 <#
