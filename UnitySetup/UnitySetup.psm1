@@ -25,7 +25,7 @@ enum UnitySetupComponent {
     Mac_IL2CPP = (1 -shl 14)
     Lumin = (1 -shl 15)
     Linux_IL2CPP = (1 -shl 16)
-    Android_SDK = (1 -shl 17)
+    Android_SDK_NDK = (1 -shl 17)
     Android_OpenJDK = (1 -shl 18)
     All = (1 -shl 19) - 1
 }
@@ -106,7 +106,7 @@ class UnitySetupInstance {
         # Common playback engines:
         $componentTests[[UnitySetupComponent]::Lumin]    = , [io.path]::Combine("$playbackEnginePath", "LuminSupport");
         $componentTests[[UnitySetupComponent]::Android]  = , [io.path]::Combine("$playbackEnginePath", "AndroidPlayer");
-        $componentTests[[UnitySetupComponent]::Android_SDK] =[io.path]::Combine("$playbackEnginePath", "AndroidPlayer/SDK"),
+        $componentTests[[UnitySetupComponent]::Android_SDK_NDK] =[io.path]::Combine("$playbackEnginePath", "AndroidPlayer/SDK"),
                                                              [io.path]::Combine("$playbackEnginePath", "AndroidPlayer/NDK");
         $componentTests[[UnitySetupComponent]::Android_OpenJDK] = [io.path]::Combine("$playbackEnginePath", "AndroidPlayer/OpenJDK"),
         $componentTests[[UnitySetupComponent]::iOS]      = , [io.path]::Combine("$playbackEnginePath", "iOSSupport");
@@ -592,13 +592,8 @@ function Find-UnitySetupInstaller {
     }
 
 
-    if ($Components -band [UnitySetupComponent]::Android_SDK) {
+    if ($Components -band [UnitySetupComponent]::Android_SDK_NDK) {
         $AdditionalComponentIds += 'android-sdk-ndk-tools'
-        $AdditionalComponentIds += 'android-sdk-platform-tools'
-        $AdditionalComponentIds += 'android-sdk-build-tools'
-        $AdditionalComponentIds += 'android-sdk-platforms-29'
-        $AdditionalComponentIds += 'android-sdk-platforms-30'
-        $AdditionalComponentIds += 'android-ndk'
     }
     if ($Components -band [UnitySetupComponent]::Android_OpenJDK) {
         $AdditionalComponentIds += 'android-open-jdk'
@@ -628,12 +623,17 @@ function Find-UnitySetupInstaller {
 
     try {
         $unityInstallersIndex = Invoke-WebRequest $unityHubEndpoint | ConvertFrom-Json
-        $unityInstallerModules = $unityInstallersIndex.official + $unityInstallersIndex.betas | Where-Object { 
+        $unityInstallerComponents = $unityInstallersIndex.official + $unityInstallersIndex.betas | Where-Object { 
             $candidateVersion = [UnityVersion]($_.version)
             return $candidateVersion.Major -eq $Version.Major -and $candidateVersion.Minor -eq $Version.Minor
         } | Select-Object -First 1 -ExpandProperty modules
 
-        $unityInstallerModules | Where-Object { $AdditionalComponentIds.Contains( $_.id ) } | ForEach-Object {
+        do {
+            $length = $AdditionalComponentIds.Length
+            $AdditionalComponentIds += $unityInstallerComponents | Where-Object { $AdditionalComponentIds.Contains( $_.sync ) -and -not $AdditionalComponentIds.Contains( $_.id ) } | Select-Object -ExpandProperty id
+        } while ($length -ne $AdditionalComponentIds.Length)
+
+        $unityInstallerComponents | Where-Object { $AdditionalComponentIds.Contains( $_.id ) } | ForEach-Object {
 
             $testResult = Invoke-WebRequest $_.downloadUrl -Method HEAD -UseBasicParsing
             # For packages on macOS the Content-Length and Last-Modified are returned as an array.
@@ -651,7 +651,7 @@ function Find-UnitySetupInstaller {
             }
 
             New-Object UnitySetupInstaller -Property @{
-                'ComponentType' = [UnitySetupComponent]::Android_SDK; # TODO: Evaluate it
+                'ComponentType' = [UnitySetupComponent]::Android_SDK_NDK; # TODO: Evaluate it
                 'Version'       = $Version;
                 'DownloadUrl'   = $_.downloadUrl;
                 'Length'        = $installerLength; # Not $_.downloadSize; because UnityHub provides only rought estimates here 
@@ -1033,7 +1033,9 @@ function Install-UnitySetupPackage {
             }
         }
         ([OperatingSystem]::Linux) {
-            New-Item -Path $Destination -ItemType "directory"
+            if (!(Test-Path $Destination -PathType Container)) {
+                New-Item -Path $Destination -ItemType Directory | Out-Null
+            }
             $startProcessArgs = @{
                 'FilePath'     = 'tar';
                 'ArgumentList' = @("xf", $Package.Path, "--directory=$Destination");
