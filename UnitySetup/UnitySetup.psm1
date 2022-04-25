@@ -24,7 +24,8 @@ enum UnitySetupComponent {
     Linux_IL2CPP = (1 -shl 16)
     Android_SDK_NDK = (1 -shl 17)
     Android_OpenJDK = (1 -shl 18)
-    All = (1 -shl 19) - 1
+    GenericUnityHubComponent = (1 -shl 19)
+    All = (1 -shl 20) - 1
 }
 
 [Flags()]
@@ -45,10 +46,10 @@ class UnitySetupInstaller {
     [int64]$Length
     [DateTime]$LastModified
     [string]$DownloadUrl
-    [string]$Destination
-    [string]$RenameFrom
-    [string]$RenameTo
-    [bool]$HubInstaller
+    hidden [string]$Destination
+    hidden [string]$RenameFrom
+    hidden [string]$RenameTo
+    hidden [bool]$HubInstaller
 }
 
 class UnitySetupInstance {
@@ -649,7 +650,7 @@ function Find-UnitySetupInstaller {
             }
 
             New-Object UnitySetupInstaller -Property @{
-                'ComponentType' = [UnitySetupComponent]::Android_SDK_NDK; # TODO: Evaluate it
+                'ComponentType' = [UnitySetupComponent]::GenericUnityHubComponent
                 'Version'       = $Version;
                 'DownloadUrl'   = $_.downloadUrl;
                 'Length'        = $installerLength; # Not $_.downloadSize; because UnityHub provides only rought estimates here 
