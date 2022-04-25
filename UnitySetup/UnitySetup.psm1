@@ -1213,11 +1213,11 @@ function Install-UnitySetupInstance {
                 Install-UnitySetupPackage -Package $editorInstaller -Destination $packageDestination
             }
 
-            $i = 0
+            $i = -1
             $installerPaths | ForEach-Object {
+                $i++
                 # Already installed this earlier. Skipping.
                 if ($_.ComponentType -band $editorComponent) {
-                    $i++
                     return
                 }
 
@@ -1229,8 +1229,6 @@ function Install-UnitySetupInstance {
                 } else {
                     Install-UnitySetupPackage -Package $_ -Destination $packageDestination
                 }
-
-                $i++
             }
 
             # Move the install from the sparse bundle disk to the install directory.
