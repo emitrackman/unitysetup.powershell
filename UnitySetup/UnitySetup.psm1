@@ -881,6 +881,7 @@ function Request-UnitySetupInstaller {
                     componentType     = $_.ComponentType
                     webClient         = $webClient
                     downloadIndex     = $downloadIndex
+                    installerIndex    = $installerIndex
                 }
 
                 # Register to events for showing progress of file download.
@@ -938,7 +939,7 @@ function Request-UnitySetupInstaller {
                             'ComponentType' = $data.componentType
                             'Path'          = $data.destination
                         }
-                        $downloads += , [System.Tuple]::Create($installerIndex, $resource)
+                        $downloads += , [System.Tuple]::Create(data.installerIndex, $resource)
                         return
                     }
 
