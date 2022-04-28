@@ -939,7 +939,7 @@ function Request-UnitySetupInstaller {
                             'ComponentType' = $data.componentType
                             'Path'          = $data.destination
                         }
-                        $downloads += , [System.Tuple]::Create(data.installerIndex, $resource)
+                        $downloads += , [System.Tuple]::Create($data.installerIndex, $resource)
                         return
                     }
 
