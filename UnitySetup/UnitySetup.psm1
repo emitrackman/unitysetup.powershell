@@ -49,7 +49,6 @@ class UnitySetupInstaller {
     hidden [string]$Destination
     hidden [string]$RenameFrom
     hidden [string]$RenameTo
-    hidden [bool]$HubInstaller
 }
 
 class UnitySetupInstance {
@@ -659,7 +658,6 @@ function Find-UnitySetupInstaller {
                 'Destination'   = $_.destination;
                 'RenameFrom'    = $_.renameFrom;
                 'RenameTo'      = $_.renameTo;
-                'HubInstaller'  = $true;
             }
         }
 
@@ -1004,9 +1002,11 @@ function Install-UnityHubPackage {
     $renameFrom = $InstallerInstance.RenameFrom.Replace("{UNITY_PATH}", $Destination)
     $renameTo = $InstallerInstance.RenameTo.Replace("{UNITY_PATH}", $Destination)
 
+    Write-Verbose "$(Get-Date) Extracting $($Package.Path) to $finalDestination "
     Expand-Archive $Package.Path -DestinationPath $finalDestination
     if ($renameTo -and $renameFrom)
     {
+        Write-Verbose "$(Get-Date) Rename $renameFrom to $renameTo "
         Move-Item -Path $renameFrom -Destination $renameTo
     }
 }
@@ -1224,7 +1224,7 @@ function Install-UnitySetupInstance {
                 Write-Verbose "Installing $($_.ComponentType)"
 
                 $installerInstance = $installerInstances[$i]
-                if ($installerInstance.HubInstaller) {
+                if ($installerInstance.ComponentType -band [UnitySetupComponent]::GenericUnityHubComponent) {
                     Install-UnityHubPackage -Package $_ -InstallerInstance $installerInstance  -Destination $packageDestination
                 } else {
                     Install-UnitySetupPackage -Package $_ -Destination $packageDestination
