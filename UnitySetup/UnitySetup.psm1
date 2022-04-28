@@ -839,8 +839,10 @@ function Request-UnitySetupInstaller {
         try {
             $global:downloadData = [ordered]@{ }
             $downloadIndex = 1
+            $installerIndex = 0;
 
             $allInstallers | ForEach-Object {
+                $installerIndex++
                 $installerFileName = [io.Path]::GetFileName($_.DownloadUrl)
                 $destination = [io.Path]::Combine($fullCachePath, "Installers", "Unity-$($_.Version)", "$installerFileName")
 
@@ -855,7 +857,7 @@ function Request-UnitySetupInstaller {
                             'ComponentType' = $_.ComponentType
                             'Path'          = $destination
                         }
-                        $downloads += , $resource
+                        $downloads += , [System.Tuple]::Create($installerIndex, $resource)
                         return
                     }
                 }
@@ -936,7 +938,7 @@ function Request-UnitySetupInstaller {
                             'ComponentType' = $data.componentType
                             'Path'          = $data.destination
                         }
-                        $downloads += , $resource
+                        $downloads += , [System.Tuple]::Create($installerIndex, $resource)
                         return
                     }
 
@@ -981,7 +983,7 @@ function Request-UnitySetupInstaller {
             Remove-Variable -Name downloadData -Scope Global
         }
 
-        return $downloads
+        return $downloads | Sort-Object -Property Item1 | ForEach-Object { $_.Item2 }
     }
 }
 
