@@ -1003,9 +1003,13 @@ function Install-UnityHubPackage {
     $renameTo = $InstallerInstance.RenameTo.Replace("{UNITY_PATH}", $Destination)
 
     Write-Verbose "$(Get-Date) Extracting $($Package.Path) to $finalDestination "
-    Expand-Archive $Package.Path -DestinationPath $finalDestination
+    Expand-Archive $Package.Path -DestinationPath $finalDestination -Force
     if ($renameTo -and $renameFrom)
     {
+        if (-not (Test-Path $renameTo -PathType Container)) {
+            Write-Verbose "Creating directory $renameTo."
+            New-Item $renameTo -ItemType Directory -ErrorAction Stop | Out-Null
+        }
         Write-Verbose "$(Get-Date) Rename $renameFrom to $renameTo "
         Move-Item -Path $renameFrom -Destination $renameTo
     }
