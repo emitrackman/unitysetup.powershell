@@ -1009,12 +1009,21 @@ function Install-UnityHubPackage {
     Expand-Archive $Package.Path -DestinationPath $finalDestination -Force
     if ($renameTo -and $renameFrom)
     {
-        if (-not (Test-Path $renameTo -PathType Container)) {
+        if (-not (Test-Path $renameTo -PathType Container))
+        {
             Write-Verbose "Creating directory $renameTo."
             New-Item $renameTo -ItemType Directory -ErrorAction Stop | Out-Null
         }
+
         Write-Verbose "$(Get-Date) Rename $renameFrom to $renameTo "
-        Move-Item -Path $renameFrom -Destination $renameTo
+        $renameFromSubitems = $renameFrom + "/*"
+        Move-Item -Path $renameFromSubitems -Destination $renameTo
+
+        if ((Get-ChildItem -Force -LiteralPath $renameFrom) -eq $null)
+        {
+            Write-Verbose "Removing empty folder at path '$renameFrom'" -Verbose
+            Remove-Item -Force -LiteralPath $renameFrom
+        }
     }
 }
 
